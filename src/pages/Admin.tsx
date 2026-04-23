@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Lock, LogOut, Package, Mail, Users, TrendingUp, Presentation, LayoutDashboard, Plus, Trash2, Edit2, Check, Save, X } from 'lucide-react';
+import { Lock, LogOut, Package, Mail, Users, TrendingUp, Presentation, LayoutDashboard, Plus, Trash2, Edit2, Check, Save, X, Eye } from 'lucide-react';
 import { useSite, compressImage } from '../context/SiteContext';
+import { fetchInquiries, markInquiryRead, Inquiry } from '../services/supabaseService';
 
 export default function Admin() {
   const { slides, setSlides, content, setContent, isAdmin, setIsAdmin } = useSite();
@@ -20,6 +21,33 @@ export default function Admin() {
   // Gallery state
   const [selectedGalleryCategory, setSelectedGalleryCategory] = useState<string>(content.home.products[0]?.id || '1');
   const [confirmDeleteGalleryId, setConfirmDeleteGalleryId] = useState<string | null>(null);
+
+  // Inquiries state
+  const [inquiries, setInquiries] = useState<Inquiry[]>([]);
+  const [loadingInquiries, setLoadingInquiries] = useState(true);
+  const [selectedInquiry, setSelectedInquiry] = useState<Inquiry | null>(null);
+
+  useEffect(() => {
+    if (isAuthenticated && activeTab === 'overview') {
+      const loadInquiries = async () => {
+        setLoadingInquiries(true);
+        const data = await fetchInquiries();
+        setInquiries(data);
+        setLoadingInquiries(false);
+      };
+      loadInquiries();
+    }
+  }, [isAuthenticated, activeTab]);
+
+  const handleReadInquiry = async (inq: Inquiry) => {
+    setSelectedInquiry(inq);
+    if (inq.status === 'new') {
+      const success = await markInquiryRead(inq.id);
+      if (success) {
+        setInquiries(prev => prev.map(i => i.id === inq.id ? { ...i, status: 'read' } : i));
+      }
+    }
+  };
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -179,7 +207,7 @@ export default function Admin() {
                 <div className="p-4 bg-sky-50 text-sky-600 rounded-lg mr-4"><Mail size={24} /></div>
                 <div>
                   <p className="text-sm font-medium text-slate-500">New Messages</p>
-                  <p className="text-2xl font-bold text-slate-800">12</p>
+                  <p className="text-2xl font-bold text-slate-800">{inquiries.filter(i => i.status === 'new').length}</p>
                 </div>
               </div>
               <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm flex items-center">
@@ -221,24 +249,91 @@ export default function Admin() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    <tr className="hover:bg-slate-50">
-                      <td className="px-6 py-4 text-sm text-slate-800">Michael Johnson</td>
-                      <td className="px-6 py-4 text-sm text-slate-600">mjohnson@example.com</td>
-                      <td className="px-6 py-4 text-sm text-slate-800">Bulk Laptop Order</td>
-                      <td className="px-6 py-4 text-sm text-slate-500">Today, 10:42 AM</td>
-                      <td className="px-6 py-4"><span className="px-2 py-1 bg-sky-100 text-sky-700 text-xs font-medium rounded-full">New</span></td>
-                    </tr>
-                    <tr className="hover:bg-slate-50">
-                      <td className="px-6 py-4 text-sm text-slate-800">Sarah Williams</td>
-                      <td className="px-6 py-4 text-sm text-slate-600">sarah.w@designco.com</td>
-                      <td className="px-6 py-4 text-sm text-slate-800">Monitor Specifications</td>
-                      <td className="px-6 py-4 text-sm text-slate-500">Yesterday</td>
-                      <td className="px-6 py-4"><span className="px-2 py-1 bg-slate-100 text-slate-700 text-xs font-medium rounded-full">Read</span></td>
-                    </tr>
+                    {loadingInquiries ? (
+                      <tr>
+                        <td colSpan={5} className="px-6 py-8 text-center text-slate-500">Loading inquiries...</td>
+                      </tr>
+                    ) : inquiries.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="px-6 py-8 text-center text-slate-500">No inquiries received yet.</td>
+                      </tr>
+                    ) : (
+                      inquiries.map(inq => (
+                        <tr key={inq.id} className={`hover:bg-slate-50 cursor-pointer ${inq.status === 'new' ? 'bg-sky-50/30' : ''}`} onClick={() => handleReadInquiry(inq)}>
+                          <td className="px-6 py-4 text-sm text-slate-800 font-medium">{inq.name}</td>
+                          <td className="px-6 py-4 text-sm text-slate-600">{inq.email}</td>
+                          <td className="px-6 py-4 text-sm text-slate-800">{inq.subject}</td>
+                          <td className="px-6 py-4 text-sm text-slate-500">
+                            {new Date(inq.created_at).toLocaleDateString()} {new Date(inq.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                          </td>
+                          <td className="px-6 py-4">
+                            {inq.status === 'new' ? (
+                              <span className="px-2 py-1 bg-sky-100 text-sky-700 text-xs font-medium rounded-full">New</span>
+                            ) : (
+                              <span className="px-2 py-1 bg-slate-100 text-slate-700 text-xs font-medium rounded-full">Read</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
             </div>
+
+            {/* Inquiry Details Modal */}
+            <AnimatePresence>
+              {selectedInquiry && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    className="bg-white rounded-xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]"
+                  >
+                    <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 sticky top-0">
+                      <h3 className="text-xl font-bold text-slate-800">Inquiry Details</h3>
+                      <button onClick={() => setSelectedInquiry(null)} className="text-slate-400 hover:text-slate-600 transition-colors">
+                        <X size={24} />
+                      </button>
+                    </div>
+                    <div className="p-6 overflow-y-auto">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                        <div>
+                          <p className="text-sm font-medium text-slate-500 mb-1">From</p>
+                          <p className="text-slate-900 font-medium">{selectedInquiry.name}</p>
+                          <p className="text-sky-600"><a href={`mailto:${selectedInquiry.email}`}>{selectedInquiry.email}</a></p>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-slate-500 mb-1">Date</p>
+                          <p className="text-slate-900">
+                            {new Date(selectedInquiry.created_at).toLocaleDateString()} at {new Date(selectedInquiry.created_at).toLocaleTimeString()}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="mb-6">
+                        <p className="text-sm font-medium text-slate-500 mb-1">Subject</p>
+                        <p className="text-slate-900 font-bold">{selectedInquiry.subject}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-slate-500 mb-2">Message</p>
+                        <div className="bg-slate-50 p-4 rounded-lg border border-slate-100 whitespace-pre-wrap text-slate-800 leading-relaxed">
+                          {selectedInquiry.message}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3 sticky bottom-0">
+                      <a href={`mailto:${selectedInquiry.email}`} className="bg-sky-500 hover:bg-sky-600 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center">
+                        <Mail size={18} className="mr-2" /> Reply
+                      </a>
+                      <button onClick={() => setSelectedInquiry(null)} className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 px-4 py-2 rounded-lg font-medium transition-colors">
+                        Close
+                      </button>
+                    </div>
+                  </motion.div>
+                </div>
+              )}
+            </AnimatePresence>
           </motion.div>
         ) : (
           <motion.div

@@ -18,7 +18,10 @@ import { SiteProvider } from './context/SiteContext';
 export default function App() {
   const [currentPage, setCurrentPage] = useState<'home' | 'vision' | 'about' | 'contact' | 'admin' | 'gallery'>(() => {
     const path = window.location.pathname.replace(/\/$/, "");
-    if (path === '/admin') return 'admin';
+    const hash = window.location.hash.replace(/\/$/, "");
+    
+    // Support both /admin and #/admin
+    if (path === '/admin' || hash === '#/admin') return 'admin';
     if (path === '/vision') return 'vision';
     if (path === '/about') return 'about';
     if (path === '/contact') return 'contact';
@@ -36,18 +39,24 @@ export default function App() {
     }
   }, [currentPage]);
 
-  // Handle browser back button
+  // Handle browser back button and hash changes
   useEffect(() => {
     const handlePopState = () => {
       const path = window.location.pathname.replace(/\/$/, "");
-      if (path === '/admin') setCurrentPage('admin');
+      const hash = window.location.hash.replace(/\/$/, "");
+      
+      if (path === '/admin' || hash === '#/admin') setCurrentPage('admin');
       else if (path === '/vision') setCurrentPage('vision');
       else if (path === '/about') setCurrentPage('about');
       else if (path === '/contact') setCurrentPage('contact');
       else setCurrentPage('home');
     };
     window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
+    window.addEventListener('hashchange', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('hashchange', handlePopState);
+    };
   }, []);
 
   const handleNavigateToGallery = (categoryId: string) => {
@@ -85,11 +94,6 @@ export default function App() {
         </button>
         <button onClick={() => navigateTo('contact')} className={btnClass}>
           <span className={linkStyle('contact')}>Contact Form</span>
-        </button>
-        <button onClick={() => navigateTo('admin')} className={btnClass} title="Admin Settings">
-          <span className={`${linkStyle('admin')} flex items-center gap-2`}>
-            {mobile ? 'Admin Settings' : <Settings size={20} />}
-          </span>
         </button>
       </>
     );

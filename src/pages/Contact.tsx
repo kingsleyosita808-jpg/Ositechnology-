@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { Send, MapPin, Mail, Phone } from 'lucide-react';
 import { useSite } from '../context/SiteContext';
+import { submitInquiry } from '../services/supabaseService';
 
 export default function Contact() {
   const { content } = useSite();
@@ -15,36 +16,48 @@ export default function Contact() {
     const form = e.currentTarget;
     const formData = new FormData(form);
     
-    const data = {
-      name: formData.get('name'),
-      email: formData.get('email'),
-      subject: formData.get('subject'),
-      message: formData.get('message'),
-      _subject: formData.get('subject') || "New Contact Form Submission",
+    // Create the structure specifically for our Supabase table
+    const inquiryData = {
+      name: formData.get('name') as string,
+      email: formData.get('email') as string,
+      subject: formData.get('subject') as string || "New Contact Form Submission",
+      message: formData.get('message') as string,
+    };
+
+    // First try saving to Supabase
+    const savedToDB = await submitInquiry(inquiryData);
+    
+    if (!savedToDB) {
+      alert("Failed to send message. Please try again later.");
+      setStatus('idle');
+      return;
+    }
+
+    // Now fallback to also shooting it via formsubmit for email notification
+    // (This is supplementary so it failing won't break the user experience)
+    const emailData = {
+      ...inquiryData,
+      _subject: inquiryData.subject,
     };
 
     try {
-      const response = await fetch("https://formsubmit.co/ajax/ositakingsley69@gmail.com", {
+      await fetch("https://formsubmit.co/ajax/ositakingsley69@gmail.com", {
         method: "POST",
         headers: { 
             "Content-Type": "application/json",
             "Accept": "application/json"
         },
-        body: JSON.stringify(data)
+        body: JSON.stringify(emailData)
       });
-      
-      if (response.ok) {
-        setStatus('sent');
-        form.reset();
-        setTimeout(() => setStatus('idle'), 5000);
-      } else {
-        throw new Error('Failed to send message');
-      }
-    } catch (error) {
-      console.error(error);
-      alert("Failed to send message. Please try again later.");
-      setStatus('idle');
+      // We don't strictly require formsubmit to succeed if DB save worked, 
+      // but it's good to try.
+    } catch (e) {
+      console.warn("Failed to send email notification, but DB save succeeded.");
     }
+
+    setStatus('sent');
+    form.reset();
+    setTimeout(() => setStatus('idle'), 5000);
   };
 
   return (

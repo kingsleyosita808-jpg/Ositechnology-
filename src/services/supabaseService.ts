@@ -1,6 +1,16 @@
 import { supabase } from '../lib/supabaseClient';
 import { SiteContent, Slide } from '../context/SiteContext';
 
+export interface Inquiry {
+  id: string;
+  name: string;
+  email: string;
+  subject: string;
+  message: string;
+  status: 'new' | 'read';
+  created_at: string;
+}
+
 export const saveSiteData = async (content: SiteContent, slides: Slide[]) => {
   try {
     const { error } = await supabase
@@ -41,5 +51,60 @@ export const fetchSiteData = async () => {
   } catch (err) {
     console.error('Supabase fetch failed:', err);
     return null;
+  }
+};
+
+export const submitInquiry = async (data: Omit<Inquiry, 'id' | 'created_at' | 'status'>) => {
+  try {
+    const { error } = await supabase
+      .from('inquiries')
+      .insert([
+        { ...data, status: 'new' }
+      ]);
+    
+    if (error) {
+      console.error('Error submitting inquiry to Supabase:', error);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error('Supabase inquiry submit failed:', err);
+    return false;
+  }
+};
+
+export const fetchInquiries = async (): Promise<Inquiry[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('inquiries')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error('Error fetching inquiries from Supabase:', error);
+      return [];
+    }
+    return data || [];
+  } catch (err) {
+    console.error('Supabase fetch inquiries failed:', err);
+    return [];
+  }
+};
+
+export const markInquiryRead = async (id: string) => {
+  try {
+    const { error } = await supabase
+      .from('inquiries')
+      .update({ status: 'read' })
+      .eq('id', id);
+    
+    if (error) {
+      console.error('Error marking inquiry as read:', error);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error('Failed to mark inquiry as read:', err);
+    return false;
   }
 };
