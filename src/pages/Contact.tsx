@@ -28,20 +28,19 @@ export default function Contact() {
     const savedToDB = await submitInquiry(inquiryData);
     
     if (!savedToDB) {
-      alert("Failed to send message. Please try again later.");
-      setStatus('idle');
-      return;
+      console.warn("Failed to save to Supabase database. Falling back to email only...");
     }
 
-    // Now fallback to also shooting it via formsubmit for email notification
-    // (This is supplementary so it failing won't break the user experience)
+    // Now shoot it via formsubmit for email notification
+    // (This ensures you still get the email even if DB fails)
     const emailData = {
       ...inquiryData,
       _subject: inquiryData.subject,
     };
 
+    let emailSent = false;
     try {
-      await fetch("https://formsubmit.co/ajax/ositakingsley69@gmail.com", {
+      const response = await fetch("https://formsubmit.co/ajax/ositakingsley69@gmail.com", {
         method: "POST",
         headers: { 
             "Content-Type": "application/json",
@@ -49,10 +48,19 @@ export default function Contact() {
         },
         body: JSON.stringify(emailData)
       });
-      // We don't strictly require formsubmit to succeed if DB save worked, 
-      // but it's good to try.
+      if (response.ok) {
+        emailSent = true;
+      } else {
+        console.error("Formsubmit responded with an error");
+      }
     } catch (e) {
-      console.warn("Failed to send email notification, but DB save succeeded.");
+      console.error("Failed to send email notification", e);
+    }
+
+    if (!savedToDB && !emailSent) {
+      alert("Failed to send message. Please try again later.");
+      setStatus('idle');
+      return;
     }
 
     setStatus('sent');

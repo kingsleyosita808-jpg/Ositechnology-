@@ -108,9 +108,18 @@ export default function Admin() {
     }
   };
 
-  const saveContentChanges = () => {
-    setContent(localContent);
-    alert('Content saved successfully.');
+  const saveContentChanges = async () => {
+    // Also save it securely to the cloud
+    const cloudSuccess = await saveSiteData(localContent, slides);
+    
+    if (cloudSuccess) {
+      setContent(localContent);
+      alert('Content saved successfully to the cloud and is now live!');
+    } else {
+      alert('Error: Changes saved back to your browser ONLY, but failed to reach the live cloud database. Check your Supabase configuration or table Permissions (RLS).');
+      // Still set it locally so they don't immediately lose progress
+      setContent(localContent); 
+    }
   };
 
   if (!isAuthenticated) {

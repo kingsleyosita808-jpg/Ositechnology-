@@ -217,19 +217,25 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     try {
       localStorage.setItem('ositech-slides', JSON.stringify(slides));
-      if (isAdmin) {
-        saveSiteData(content, slides);
-      }
-    } catch (e) { console.error('Limit reached'); }
+    } catch (e) { 
+      console.warn('Local storage limit reached for slides, but proceeding with cloud sync.'); 
+    }
+    
+    if (isAdmin) {
+      saveSiteData(content, slides).catch(err => console.error("Cloud sync failed", err));
+    }
   }, [slides, isAdmin]);
 
   useEffect(() => {
     try {
       localStorage.setItem('ositech-content', JSON.stringify(content));
-      if (isAdmin) {
-        saveSiteData(content, slides);
-      }
-    } catch (e) { console.error('Limit reached'); }
+    } catch (e) { 
+      console.warn('Local storage limit reached for content, but proceeding with cloud sync.'); 
+    }
+    
+    if (isAdmin) {
+      saveSiteData(content, slides).catch(err => console.error("Cloud sync failed", err));
+    }
   }, [content, isAdmin]);
 
   return (
