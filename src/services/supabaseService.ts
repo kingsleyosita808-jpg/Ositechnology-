@@ -64,12 +64,12 @@ export const submitInquiry = async (data: Omit<Inquiry, 'id' | 'created_at' | 's
     
     if (error) {
       console.error('Error submitting inquiry to Supabase:', error);
-      return false;
+      return { success: false, error };
     }
-    return true;
+    return { success: true, error: null };
   } catch (err) {
     console.error('Supabase inquiry submit failed:', err);
-    return false;
+    return { success: false, error: err };
   }
 };
 

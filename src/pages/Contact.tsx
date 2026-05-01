@@ -27,8 +27,11 @@ export default function Contact() {
     // First try saving to Supabase
     const savedToDB = await submitInquiry(inquiryData);
     
-    if (!savedToDB) {
+    if (savedToDB.success) {
+      console.log('Successfully saved to Supabase');
+    } else {
       console.warn("Failed to save to Supabase database. Falling back to email only...");
+      console.error("Supabase Error Context:", savedToDB.error);
     }
 
     // Now shoot it via formsubmit for email notification
@@ -57,7 +60,7 @@ export default function Contact() {
       console.error("Failed to send email notification", e);
     }
 
-    if (!savedToDB && !emailSent) {
+    if (!savedToDB.success && !emailSent) {
       alert("Failed to send message. Please try again later.");
       setStatus('idle');
       return;
