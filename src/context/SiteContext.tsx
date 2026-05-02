@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { fetchSiteData, saveSiteData } from '../services/supabaseService';
+import { supabase } from '../lib/supabaseClient';
 
 export interface Slide {
   id: string;
@@ -212,6 +213,40 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
       }
     };
     initData();
+
+    // Subscribe to realtime changes!
+    const channel = supabase.channel('schema-db-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'site_data',
+        },
+        (payload) => {
+          if (payload.new) {
+            const newData = payload.new as any;
+            
+            // Prevent infinite update loops by ensuring we only update if data changed
+            setSlides(prev => {
+              const prevStr = JSON.stringify(prev);
+              const newStr = JSON.stringify(newData.slides);
+              return prevStr === newStr ? prev : newData.slides;
+            });
+
+            setContent(prev => {
+              const prevStr = JSON.stringify(prev);
+              const newStr = JSON.stringify(newData.content);
+              return prevStr === newStr ? prev : newData.content;
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   useEffect(() => {

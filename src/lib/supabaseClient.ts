@@ -1,6 +1,15 @@
 import { createClient } from '@supabase/supabase-js';
 
-const rawUrl = import.meta.env.VITE_SUPABASE_URL;
+const rawUrlInput = import.meta.env.VITE_SUPABASE_URL;
+let rawUrl = rawUrlInput;
+
+// Auto-correct if user only provided the project ID instead of the full URL
+if (rawUrl && !rawUrl.includes('://') && !rawUrl.includes('supabase.co')) {
+  rawUrl = `https://${rawUrl}.supabase.co`;
+} else if (rawUrl && !rawUrl.includes('://') && rawUrl.includes('supabase.co')) {
+  rawUrl = `https://${rawUrl}`;
+}
+
 const rawKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 const isValidUrl = (url: string | undefined): boolean => {
