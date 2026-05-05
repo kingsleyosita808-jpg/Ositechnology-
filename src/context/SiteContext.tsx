@@ -229,12 +229,14 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
             
             // Prevent infinite update loops by ensuring we only update if data changed
             setSlides(prev => {
+              if (!newData.slides) return prev;
               const prevStr = JSON.stringify(prev);
               const newStr = JSON.stringify(newData.slides);
               return prevStr === newStr ? prev : newData.slides;
             });
 
             setContent(prev => {
+              if (!newData.content) return prev;
               const prevStr = JSON.stringify(prev);
               const newStr = JSON.stringify(newData.content);
               return prevStr === newStr ? prev : newData.content;

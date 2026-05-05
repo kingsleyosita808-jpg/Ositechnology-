@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 
+// @ts-ignore
 const rawUrlInput = import.meta.env.VITE_SUPABASE_URL;
 let rawUrl = rawUrlInput;
 
@@ -10,6 +11,7 @@ if (rawUrl && !rawUrl.includes('://') && !rawUrl.includes('supabase.co')) {
   rawUrl = `https://${rawUrl}`;
 }
 
+// @ts-ignore
 const rawKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 const isValidUrl = (url: string | undefined): boolean => {

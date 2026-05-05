@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Lock, LogOut, Package, Mail, Users, TrendingUp, Presentation, LayoutDashboard, Plus, Trash2, Edit2, Check, Save, X, Eye } from 'lucide-react';
 import { useSite, compressImage } from '../context/SiteContext';
-import { fetchInquiries, markInquiryRead, Inquiry } from '../services/supabaseService';
+import { fetchInquiries, markInquiryRead, Inquiry, saveSiteData } from '../services/supabaseService';
 
 export default function Admin() {
   const { slides, setSlides, content, setContent, isAdmin, setIsAdmin } = useSite();
@@ -26,6 +26,15 @@ export default function Admin() {
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
   const [loadingInquiries, setLoadingInquiries] = useState(true);
   const [selectedInquiry, setSelectedInquiry] = useState<Inquiry | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [toastMessage, setToastMessage] = useState<{message: string; type: 'success' | 'error'} | null>(null);
+
+  useEffect(() => {
+    if (toastMessage) {
+      const timer = setTimeout(() => setToastMessage(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [toastMessage]);
 
   useEffect(() => {
     if (isAuthenticated && activeTab === 'overview') {
@@ -104,22 +113,24 @@ export default function Admin() {
       const compressedDataUrl = await compressImage(file);
       setSlides(slides.map(s => s.id === id ? { ...s, image: compressedDataUrl } : s));
     } catch (err) {
-      alert("Failed to process the image. Please try a smaller image.");
+      setToastMessage({ message: "Failed to process the image. Please try a smaller image.", type: 'error' });
     }
   };
 
   const saveContentChanges = async () => {
+    setIsSaving(true);
     // Also save it securely to the cloud
     const cloudSuccess = await saveSiteData(localContent, slides);
     
     if (cloudSuccess) {
       setContent(localContent);
-      alert('Content saved successfully to the cloud and is now live!');
+      setToastMessage({ message: 'Content saved successfully and is now live!', type: 'success' });
     } else {
-      alert('Error: Changes saved back to your browser ONLY, but failed to reach the live cloud database. Check your Supabase configuration or table Permissions (RLS).');
+      setToastMessage({ message: 'Error: Failed to reach the live cloud database.', type: 'error' });
       // Still set it locally so they don't immediately lose progress
       setContent(localContent); 
     }
+    setIsSaving(false);
   };
 
   if (!isAuthenticated) {
@@ -166,12 +177,34 @@ export default function Admin() {
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="w-full max-w-7xl mx-auto px-6 py-12"
-    >
+    <>
+      <AnimatePresence>
+        {toastMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: -20, x: '-50%' }}
+            animate={{ opacity: 1, y: 0, x: '-50%' }}
+            exit={{ opacity: 0, y: -20, x: '-50%' }}
+            className={`fixed top-6 left-1/2 z-50 px-6 py-3 rounded-lg shadow-lg border font-medium flex items-center ${
+              toastMessage.type === 'success' 
+                ? 'bg-green-50 border-green-200 text-green-800' 
+                : 'bg-red-50 border-red-200 text-red-800'
+            }`}
+          >
+            {toastMessage.type === 'success' ? (
+               <Check size={20} className="mr-2" />
+            ) : (
+               <X size={20} className="mr-2" />
+            )}
+            {toastMessage.message}
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="w-full max-w-7xl mx-auto px-6 py-12"
+      >
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
           <h1 className="text-3xl font-bold text-slate-900">Admin Dashboard</h1>
@@ -637,8 +670,21 @@ export default function Admin() {
                   <h2 className="text-xl font-bold text-slate-800">Home Page Text</h2>
                   <p className="text-slate-500 text-sm mt-1">Update main introductory text on your home page.</p>
                 </div>
-                <button onClick={saveContentChanges} className="bg-sky-500 hover:bg-sky-600 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center">
-                  <Save size={18} className="mr-1" /> Save All Settings
+                <button 
+                  onClick={saveContentChanges} 
+                  disabled={isSaving}
+                  className={`${isSaving ? 'bg-sky-400 cursor-not-allowed' : 'bg-sky-500 hover:bg-sky-600'} text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center`}
+                >
+                  {isSaving ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save size={18} className="mr-1" /> Save All Settings
+                    </>
+                  )}
                 </button>
               </div>
               <div className="space-y-4">
@@ -890,5 +936,6 @@ export default function Admin() {
         )}
       </AnimatePresence>
     </motion.div>
+    </>
   );
 }
