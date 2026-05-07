@@ -120,13 +120,13 @@ export default function Admin() {
   const saveContentChanges = async () => {
     setIsSaving(true);
     // Also save it securely to the cloud
-    const cloudSuccess = await saveSiteData(localContent, slides);
+    const result = await saveSiteData(localContent, slides);
     
-    if (cloudSuccess) {
+    if (result.success) {
       setContent(localContent);
       setToastMessage({ message: 'Content saved successfully and is now live!', type: 'success' });
     } else {
-      setToastMessage({ message: 'Error: Failed to reach the live cloud database.', type: 'error' });
+      setToastMessage({ message: `Error: ${result.error}`, type: 'error' });
       // Still set it locally so they don't immediately lose progress
       setContent(localContent); 
     }

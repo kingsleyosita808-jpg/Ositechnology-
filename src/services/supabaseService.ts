@@ -24,12 +24,12 @@ export const saveSiteData = async (content: SiteContent, slides: Slide[]) => {
     
     if (error) {
       console.error('Error saving to Supabase:', error);
-      return false;
+      return { success: false, error: error.message };
     }
-    return true;
-  } catch (err) {
+    return { success: true, error: null };
+  } catch (err: any) {
     console.error('Supabase save failed:', err);
-    return false;
+    return { success: false, error: err.message || 'Unknown error' };
   }
 };
 
